@@ -61,3 +61,12 @@ This script is provided as-is, without warranty. Use at your own risk. Not affil
 ## License
 
 MIT License
+
+## Recent Changes
+
+### 2025-09-01
+
+- Improved active TCP connection detection for OpenBSD:
+  - Now use OpenBSD `netstat` output format to accurately detect active TCP connections on the downstream interface.
+  - The scripts check for ESTABLISHED TCP connections by matching the downstream interface IP in the local address field of netstat output.
+- This change ensures reliable detection of active connections before switching VPN peers or reporting downstream activity.
