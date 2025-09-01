@@ -27,6 +27,9 @@ readonly DNS_SERVER="10.64.0.1"
 readonly MAX_CONNECTION_WAIT=30  # Maximum seconds to wait for connections to close (0 or negative = unlimited)
 readonly CHECK_INTERVAL=5        # Seconds between connection checks
 
+# Downstream interface (set to your LAN-facing interface)
+readonly DOWNSTREAM_INTERFACE="em1"  # Change to your downstream interface name
+
 # Mullvad VPN Peers
 # To add a new peer, check https://mullvad.net/en/servers
 # Format: "PUBLIC_KEY,ENDPOINT"
@@ -56,6 +59,11 @@ readonly PEERS=(
 #==============================================================================
 # UTILITY FUNCTIONS
 #==============================================================================
+
+# Get downstream interface IP
+get_downstream_ip() {
+  ifconfig "$DOWNSTREAM_INTERFACE" | awk '/inet / {print $2; exit}'
+}
 
 # Logging function with timestamp
 log() {
@@ -114,10 +122,16 @@ select_random_peer() {
 
 # Check for active TCP connections on WireGuard port
 check_active_connections() {
-  log "INFO" "Checking for active TCP connections on port $WG_PORT..."
-  
+  log "INFO" "Checking for active TCP connections from downstream interface..."
   local wait_time=0
-  while netstat -an | grep -q "\.${WG_PORT}.*ESTABLISHED"; do
+  local downstream_ip
+  downstream_ip=$(get_downstream_ip)
+  if [[ -z "$downstream_ip" ]]; then
+    error_exit "Failed to get downstream interface IP for $DOWNSTREAM_INTERFACE"
+  fi
+
+  log "INFO" "Checking for active TCP connections from $DOWNSTREAM_INTERFACE ($downstream_ip)..."
+  while netstat -n | grep "^tcp" | grep ESTABLISHED | grep "${downstream_ip}." >/dev/null; do
     if [[ $MAX_CONNECTION_WAIT -gt 0 && $wait_time -ge $MAX_CONNECTION_WAIT ]]; then
       log "WARNING" "Active connections still present after ${MAX_CONNECTION_WAIT}s, proceeding anyway"
       break
@@ -132,7 +146,7 @@ check_active_connections() {
     wait_time=$((wait_time + CHECK_INTERVAL))
   done
 
-  log "INFO" "No active TCP connections detected"
+  log "INFO" "No active TCP connections detected on $DOWNSTREAM_INTERFACE ($downstream_ip)"
 }
 
 # Stop WireGuard interface
