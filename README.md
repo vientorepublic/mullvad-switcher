@@ -44,7 +44,7 @@ This project provides a Bash script (`mullvad.sh`) to automatically switch betwe
 
 ## Customization
 
-- **Peers:** Add or remove Mullvad WireGuard peers in the `PEERS` array.
+- **Peers:** Add or remove Mullvad WireGuard peers in the `PEERS` array. For the latest peer information, visit [Mullvad Servers](https://mullvad.net/en/servers).
 - **Connection Settings:** Adjust `MAX_CONNECTION_WAIT` and `CHECK_INTERVAL` as needed.
 - **WireGuard Interface:** Change `WG_INTERFACE` if you use a different interface name.
 

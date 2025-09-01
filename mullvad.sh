@@ -28,6 +28,8 @@ readonly MAX_CONNECTION_WAIT=30  # Maximum seconds to wait for connections to cl
 readonly CHECK_INTERVAL=5        # Seconds between connection checks
 
 # Mullvad VPN Peers
+# To add a new peer, check https://mullvad.net/en/servers
+# Format: "PUBLIC_KEY,ENDPOINT"
 readonly PEERS=(
   # Japan - Tokyo
   "AUo2zhQ0wCDy3/jmZgOe4QMncWWqrdME7BbY2UlkgyI=,138.199.21.239:51820" # jp-tyo-wg-001
