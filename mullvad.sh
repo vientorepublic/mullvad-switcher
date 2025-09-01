@@ -23,7 +23,8 @@ readonly CLIENT_ADDRESS="10.74.239.31/32"  # Replace with your assigned IP
 readonly DNS_SERVER="10.64.0.1"
 
 # Connection check settings
-readonly MAX_CONNECTION_WAIT=30  # Maximum seconds to wait for connections to close
+# Set MAX_CONNECTION_WAIT to 0 or negative to wait indefinitely for connections to close
+readonly MAX_CONNECTION_WAIT=30  # Maximum seconds to wait for connections to close (0 or negative = unlimited)
 readonly CHECK_INTERVAL=5        # Seconds between connection checks
 
 # Mullvad VPN Peers
@@ -115,16 +116,20 @@ check_active_connections() {
   
   local wait_time=0
   while netstat -an | grep -q "\.${WG_PORT}.*ESTABLISHED"; do
-    if [[ $wait_time -ge $MAX_CONNECTION_WAIT ]]; then
+    if [[ $MAX_CONNECTION_WAIT -gt 0 && $wait_time -ge $MAX_CONNECTION_WAIT ]]; then
       log "WARNING" "Active connections still present after ${MAX_CONNECTION_WAIT}s, proceeding anyway"
       break
     fi
-    
-    log "INFO" "Active connections detected, waiting ${CHECK_INTERVAL}s... (${wait_time}/${MAX_CONNECTION_WAIT}s)"
+
+    if [[ $MAX_CONNECTION_WAIT -gt 0 ]]; then
+      log "INFO" "Active connections detected, waiting ${CHECK_INTERVAL}s... (${wait_time}/${MAX_CONNECTION_WAIT}s)"
+    else
+      log "INFO" "Active connections detected, waiting ${CHECK_INTERVAL}s... (unlimited wait)"
+    fi
     sleep $CHECK_INTERVAL
     wait_time=$((wait_time + CHECK_INTERVAL))
   done
-  
+
   log "INFO" "No active TCP connections detected"
 }
 
