@@ -30,8 +30,64 @@ CHECK_INTERVAL=5        # Seconds between connection checks
 # Downstream interface (set to your LAN-facing interface)
 DOWNSTREAM_INTERFACE=em1  # Change to your downstream interface name
 
-# Mullvad VPN Peers (pipe-separated, ksh compatible)
-PEERS="AUo2zhQ0wCDy3/jmZgOe4QMncWWqrdME7BbY2UlkgyI=,138.199.21.239:51820|zdlqydCbeR7sG1y5L8sS65X1oOtRKvfVbAuFgqEGhi4=,138.199.21.226:51820|uhbuY1A7g0yNu0lRhLTi020kYeAx34ED30BA5DQRHFo=,194.114.136.3:51820|wzGXxsYOraTCPZuRxfXVTNmoWsRkMFLqMqDxI4PutBg=,194.114.136.34:51820|Pt18GnBffElW0sqnd6IDRr5r0B/NDezy6NicoPI+fG8=,194.114.136.65:51820|JpDAtRuR39GLFKoQNiKvpzuJ65jOOLD7h85ekZ3reVc=,194.114.136.96:51820|EAzbWMQXxJGsd8j2brhYerGB3t5cPOXqdIDFspDGSng=,146.70.211.66:51820|OYG1hxzz3kUGpVeGjx9DcCYreMO3S6tZN17iHUK+zDE=,146.70.211.2:51820|jn/i/ekJOkkRUdMj2I4ViUKd3d/LAdTQ+ICKmBy1tkM=,146.70.211.130:51820|xZsnCxFN7pOvx6YlTbi92copdsY5xgekTCp//VUMyhE=,37.19.200.156:51820|sPQEji8BhxuM/Za0Q0/9aWYxyACtQF0qRpzaBLumEzo=,37.19.200.143:51820|4s9JIhxC/D02tosXYYcgrD+pHI+C7oTAFsXzVisKjRs=,37.19.200.130:51820|NKscQ4mm24nsYWfpL85Cve+BKIExR0JaysldUtVSlzg=,37.19.221.130:51820|tzSfoiq9ZbCcE5I0Xz9kCrsWksDn0wgvaz9TiHYTmnU=,37.19.221.143:51820|fNSu30TCgbADxNKACx+5qWY6XGJOga4COmTZZE0k0R4=,37.19.221.156:51820|NkZMYUEcHykPkAFdm3dE8l2U9P2mt58Dw6j6BWhzaCc=,37.19.221.169:51820"
+# Mullvad VPN Peers Configuration
+# Format: Region - Server Description
+# Each peer contains: PublicKey,Endpoint:Port
+#
+# To add a new peer:
+# 1. Call add_peer "REGION-##" "PublicKey" "IP:Port"
+# 2. Use consistent region codes
+# 3. Number servers sequentially within each region
+
+# Initialize peer database (ksh compatible)
+init_peer_database() {
+  # Japan, Osaka
+  add_peer "JP-OSA-001" "uhbuY1A7g0yNu0lRhLTi020kYeAx34ED30BA5DQRHFo=" "194.114.136.3:51820"
+  add_peer "JP-OSA-002" "wzGXxsYOraTCPZuRxfXVTNmoWsRkMFLqMqDxI4PutBg=" "194.114.136.34:51820"
+  add_peer "JP-OSA-003" "Pt18GnBffElW0sqnd6IDRr5r0B/NDezy6NicoPI+fG8=" "194.114.136.65:51820"
+  add_peer "JP-OSA-004" "JpDAtRuR39GLFKoQNiKvpzuJ65jOOLD7h85ekZ3reVc=" "194.114.136.96:51820"
+  
+  # Japan, Tokyo
+  add_peer "JP-TYO-001" "AUo2zhQ0wCDy3/jmZgOe4QMncWWqrdME7BbY2UlkgyI=" "138.199.21.239:51820"
+  add_peer "JP-TYO-002" "zdlqydCbeR7sG1y5L8sS65X1oOtRKvfVbAuFgqEGhi4=" "138.199.21.226:51820"
+  add_peer "JP-TYO-201" "0j7u9Vd+EsqFs8XeV/T/ZM7gE+TWgEsYCsqcZUShvzc=" "146.70.138.194:51820"
+  add_peer "JP-TYO-202" "yLKGIH/eaNUnrOEPRtgvC3PSMTkyAFK/0t8lNjam02k=" "146.70.201.2:51820"
+  add_peer "JP-TYO-203" "tgTYDEfbDgr35h6hYW01MH76CJrwuBvbQFhyVsazEic=" "146.70.201.66:51820"
+}
+
+# Peer management (OpenBSD ksh compatible)
+PEER_COUNT=0
+PEER_NAMES=""
+PEER_PUBKEYS=""
+PEER_ENDPOINTS=""
+
+# Add a peer to the database
+add_peer() {
+  local name="$1"
+  local pubkey="$2"
+  local endpoint="$3"
+  
+  PEER_COUNT=$((PEER_COUNT + 1))
+  
+  if [ -z "$PEER_NAMES" ]; then
+    PEER_NAMES="$name"
+    PEER_PUBKEYS="$pubkey"
+    PEER_ENDPOINTS="$endpoint"
+  else
+    PEER_NAMES="${PEER_NAMES}|${name}"
+    PEER_PUBKEYS="${PEER_PUBKEYS}|${pubkey}"
+    PEER_ENDPOINTS="${PEER_ENDPOINTS}|${endpoint}"
+  fi
+}
+
+# Get peer information by index
+get_peer_info() {
+  local index="$1"
+  local name=$(echo "$PEER_NAMES" | cut -d'|' -f"$index")
+  local pubkey=$(echo "$PEER_PUBKEYS" | cut -d'|' -f"$index")
+  local endpoint=$(echo "$PEER_ENDPOINTS" | cut -d'|' -f"$index")
+  echo "$name,$pubkey,$endpoint"
+}
 
 #==============================================================================
 # UTILITY FUNCTIONS
@@ -78,19 +134,108 @@ check_dependencies() {
 # CORE FUNCTIONS
 #==============================================================================
 
-# Select a random peer from the list (OpenBSD ksh compatible)
+# Select a random peer from the database (OpenBSD ksh compatible)
 select_random_peer() {
-  set -- $(echo "$PEERS" | tr '|' ' ')
-  peer_count=$#
-  # Generate random index using awk
-  idx=$(awk -v max=$peer_count 'BEGIN { srand(); print int(rand()*max)+1 }')
-  eval selected_peer=\${$idx}
-  peer_pubkey=$(echo "$selected_peer" | cut -d',' -f1)
-  peer_endpoint=$(echo "$selected_peer" | cut -d',' -f2)
-  if [ -z "$peer_pubkey" ] || [ -z "$peer_endpoint" ]; then
-    error_exit "Failed to parse peer information"
+  if [ "$PEER_COUNT" -eq 0 ]; then
+    error_exit "No peers available in database"
   fi
+  
+  # Generate random index using awk (1-based indexing)
+  idx=$(awk -v max="$PEER_COUNT" 'BEGIN { srand(); print int(rand()*max)+1 }')
+  
+  # Get peer information
+  peer_info=$(get_peer_info "$idx")
+  peer_name=$(echo "$peer_info" | cut -d',' -f1)
+  peer_pubkey=$(echo "$peer_info" | cut -d',' -f2)
+  peer_endpoint=$(echo "$peer_info" | cut -d',' -f3)
+  
+  if [ -z "$peer_pubkey" ] || [ -z "$peer_endpoint" ]; then
+    error_exit "Failed to parse peer information for index $idx"
+  fi
+  
+  log "INFO" "Selected peer: $peer_name ($peer_endpoint)"
   echo "$peer_pubkey,$peer_endpoint"
+}
+
+# List all available peers (for debugging/information)
+list_peers() {
+  log "INFO" "Available peers:"
+  i=1
+  while [ "$i" -le "$PEER_COUNT" ]; do
+    peer_info=$(get_peer_info "$i")
+    peer_name=$(echo "$peer_info" | cut -d',' -f1)
+    peer_endpoint=$(echo "$peer_info" | cut -d',' -f3)
+    log "INFO" "  $i. $peer_name - $peer_endpoint"
+    i=$((i + 1))
+  done
+}
+
+# Select peers by region prefix (e.g., "AMS" for Amsterdam)
+select_peer_by_region() {
+  local region_prefix="$1"
+  local matching_indices=""
+  local match_count=0
+  
+  i=1
+  while [ "$i" -le "$PEER_COUNT" ]; do
+    peer_info=$(get_peer_info "$i")
+    peer_name=$(echo "$peer_info" | cut -d',' -f1)
+    
+    # Check if peer name starts with region prefix
+    case "$peer_name" in
+      "$region_prefix"-*)
+        match_count=$((match_count + 1))
+        if [ -z "$matching_indices" ]; then
+          matching_indices="$i"
+        else
+          matching_indices="${matching_indices} $i"
+        fi
+        ;;
+    esac
+    i=$((i + 1))
+  done
+  
+  if [ "$match_count" -eq 0 ]; then
+    error_exit "No peers found for region: $region_prefix"
+  fi
+  
+  # Select random peer from matching region
+  idx=$(awk -v max="$match_count" 'BEGIN { srand(); print int(rand()*max)+1 }')
+  selected_idx=$(echo "$matching_indices" | cut -d' ' -f"$idx")
+  
+  peer_info=$(get_peer_info "$selected_idx")
+  peer_name=$(echo "$peer_info" | cut -d',' -f1)
+  peer_pubkey=$(echo "$peer_info" | cut -d',' -f2)
+  peer_endpoint=$(echo "$peer_info" | cut -d',' -f3)
+  
+  log "INFO" "Selected peer from region $region_prefix: $peer_name ($peer_endpoint)"
+  echo "$peer_pubkey,$peer_endpoint"
+}
+
+# Get available regions
+list_regions() {
+  regions=""
+  i=1
+  while [ "$i" -le "$PEER_COUNT" ]; do
+    peer_info=$(get_peer_info "$i")
+    peer_name=$(echo "$peer_info" | cut -d',' -f1)
+    region=$(echo "$peer_name" | cut -d'-' -f1)
+    
+    # Add region to list if not already present
+    case "|$regions|" in
+      *"|$region|"*) ;;
+      *) 
+        if [ -z "$regions" ]; then
+          regions="$region"
+        else
+          regions="${regions}|${region}"
+        fi
+        ;;
+    esac
+    i=$((i + 1))
+  done
+  
+  echo "$regions"
 }
 
 # Check for active TCP connections on WireGuard port
@@ -202,19 +347,91 @@ verify_connection() {
 #==============================================================================
 
 main() {
+  local region=""
+  local show_help=false
+  local list_regions_flag=false
+  local list_peers_flag=false
+  
+  # Parse command line arguments
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -r|--region)
+        region="$2"
+        shift 2
+        ;;
+      -l|--list-peers)
+        list_peers_flag=true
+        shift
+        ;;
+      --list-regions)
+        list_regions_flag=true
+        shift
+        ;;
+      -h|--help)
+        show_help=true
+        shift
+        ;;
+      *)
+        log "ERROR" "Unknown option: $1"
+        show_help=true
+        shift
+        ;;
+    esac
+  done
+  
+  # Show help if requested
+  if [ "$show_help" = true ]; then
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -r, --region REGION    Connect to a specific region (AMS, FRA, DUB, STO)"
+    echo "  -l, --list-peers       List all available peers"
+    echo "  --list-regions         List all available regions"
+    echo "  -h, --help             Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                     Connect to a random peer"
+    echo "  $0 -r AMS              Connect to a random Amsterdam peer"
+    echo "  $0 --list-peers        Show all available peers"
+    echo "  $0 --list-regions      Show all available regions"
+    exit 0
+  fi
+  
   log "INFO" "Starting Mullvad WireGuard connection manager..."
+  
+  # Initialize peer database
+  init_peer_database
+  log "INFO" "Loaded $PEER_COUNT peers from database"
+  
+  # Handle list options
+  if [ "$list_regions_flag" = true ]; then
+    regions=$(list_regions)
+    log "INFO" "Available regions:"
+    echo "$regions" | tr '|' '\n' | while read -r region_name; do
+      log "INFO" "  $region_name"
+    done
+    exit 0
+  fi
+  
+  if [ "$list_peers_flag" = true ]; then
+    list_peers
+    exit 0
+  fi
   
   # Perform initial checks
   check_root
   check_dependencies
   
-  # Select random peer
+  # Select peer (by region or random)
   local peer_info
-  peer_info=$(select_random_peer)
+  if [ -n "$region" ]; then
+    peer_info=$(select_peer_by_region "$region")
+  else
+    peer_info=$(select_random_peer)
+  fi
+  
   peer_pubkey=$(echo "$peer_info" | cut -d',' -f1)
   peer_endpoint=$(echo "$peer_info" | cut -d',' -f2)
-  
-  log "INFO" "Selected peer: $peer_endpoint"
   
   # Connection management sequence
   check_active_connections
