@@ -32,7 +32,7 @@ This project provides a shell script (`mullvad.sh`) for OpenBSD to automatically
    ```
 5. **Run as root:**
    ```sh
-   sudo ./mullvad.sh
+   doas ./mullvad.sh
    ```
 
 ## How It Works
